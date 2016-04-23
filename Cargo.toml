@@ -1,0 +1,14 @@
+[package]
+name = "nsa"
+version = "0.1.0"
+authors = ["Andre Bogus <bogusandre@gmail.com>"]
+description = "A lint that collects metadata of all crates"
+readme = "README.md"
+keywords = ["lint", "metadata", "collection"]
+license = "Mozilla Public License 2.0"
+repository = "https://github.com/llogiq/nsa"
+
+[lib]
+name = "nsa"
+plugin = true
+
