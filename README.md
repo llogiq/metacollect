@@ -1,7 +1,5 @@
 # NSA
 
-[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/llogiq/nsa)
-
 *Collecting All Your Crate Metadata*
 
 This is a lint that never reports anything, but collects crate metadata like
@@ -24,3 +22,7 @@ the plan is to use [Diesel](http://diesel.rs) to write to an SQLite database.
 * How to deal with generics
 * How to deal with trait object methods
 * How to run the lint from a build script
+
+### License
+
+Mozilla Public License 2.0 (see [LICENSE](LICENSE))
