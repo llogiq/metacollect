@@ -163,9 +163,9 @@ impl<'a, 'c, 't: 'c> Visitor<'c> for FnVisitor<'a, 'c, 't> {
                 // to look up in the 0th type
                 // this will use self.cx
             },
-            ExprCall(ref target, ref _args) =>
+            ExprCall(ref function, ref _args) =>
                 // target is a Spanned{ ExprPath } here
-                if let ExprPath(ref _qself, ref path) = target.node {
+                if let ExprPath(ref _qself, ref path) = function.node {
                     //TODO: look up path, what to do with qself?
                     insert_call(self.nsa, self.name, path);
                 },
