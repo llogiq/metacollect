@@ -150,7 +150,12 @@ impl<'a, 'c, 't: 'c> FnVisitor<'a, 'c, 't> {
     }
 }
 
+static DEREF : &'static [&'static str] = &["std", "ops", "Deref"];
+static NOT   : &'static [&'static str] = &["std", "ops", "Not"];
+static NEG   : &'static [&'static str] = &["std", "ops", "Neg"];
+
 impl<'a, 'c, 't: 'c> Visitor<'c> for FnVisitor<'a, 'c, 't> {
+    /// look up method calls and some ops (which are implemented by traits)
     fn visit_expr(&mut self, expr: &'c Expr) {
         match expr.node {
             ExprMethodCall(ref _target_name, ref _tys, ref _args) => {
@@ -164,8 +169,84 @@ impl<'a, 'c, 't: 'c> Visitor<'c> for FnVisitor<'a, 'c, 't> {
                     //TODO: look up path, what to do with qself?
                     insert_call(self.nsa, self.name, path);
                 },
+            ExprUnary(op, ref arg) => {
+                let trait_path : &'static [&str] = match op {
+                    UnDeref => DEREF, //TODO DerefMut?
+                    UnNot => NOT,
+                    UnNeg => NEG
+                };
+                insert_unop(self, trait_path, arg)
+            },
+            ExprBinary(op, ref l, ref r) => {
+                match op.node {
+                    BiAdd => insert_binop(self, &["core", "ops", "Add"], l, r),
+                    BiSub => insert_binop(self, &["core", "ops", "Sub"], l, r),
+                    BiMul => insert_binop(self, &["core", "ops", "Mul"], l, r),
+                    BiDiv => insert_binop(self, &["core", "ops", "Div"], l, r),
+                    BiRem => insert_binop(self, &["core", "ops", "Rem"], l, r),
+                    BiBitXor => insert_binop(self, &["core", "ops", "BitXor"], l, r),
+                    BiBitAnd => insert_binop(self, &["core", "ops", "BitAnd"], l, r),
+                    BiBitOr => insert_binop(self, &["core", "ops", "BitOr"], l, r),
+                    BiShl => insert_binop(self, &["core", "ops", "Shl"], l, r),
+                    BiShr => insert_binop(self, &["core", "ops", "Shr"], l, r),
+                    BiEq |
+                    BiNe => insert_binop(self, &["core", "cmp", "PartialEq"], l, r),
+                    BiLt |
+                    BiLe |
+                    BiGe |
+                    BiGt => insert_cmp(self, l, r),
+                    BiAnd |
+                    BiOr => (),
+                }
+            },
+            ExprAssignOp(op, ref l, ref r) => {
+                match op.node {
+                    BiAdd => insert_op_assign(self, "AddAssign", "Add", l, r),
+                    BiSub => insert_op_assign(self, "SubAssign", "Sub", l, r),
+                    BiMul => insert_op_assign(self, "MulAssign", "Mul", l, r),
+                    BiDiv => insert_op_assign(self, "DivAssign", "Div", l, r),
+                    BiRem => insert_op_assign(self, "RemAssign", "Rem", l, r),
+                    BiBitXor => insert_op_assign(self, "BitXorAssign", "BitXor", l, r),
+                    BiBitAnd => insert_op_assign(self, "BitAndAssign", "BitAnd", l, r),
+                    BiBitOr => insert_op_assign(self, "BitOrAssign", "BitOr", l, r),
+                    BiShl => insert_op_assign(self, "ShlAssign", "Shl", l, r),
+                    BiShr => insert_op_assign(self, "ShrAssign", "Shr", l, r),
+                    _ => (),
+                }
+            },
+            ExprIndex(ref l, ref r) =>
+                insert_binop(self, &["core", "ops", "Index"], l, r), //TODO: IndexMut?
             _ => (),
         }
         walk_expr(self, expr);
     }
+}
+
+fn insert_unop(y: &mut FnVisitor, trait_path: &[&str], arg: &Expr) {
+    //TODO
+}
+
+fn insert_binop(v: &mut FnVisitor, trait_path: &[&str], l: &Expr, r: &Expr) {
+    if let Some(ref node) = lookup_bi_trait(v, trait_path, l, r) {
+        //TODO
+    }
+}
+
+fn insert_cmp(v: &mut FnVisitor, l: &Expr, r: &Expr) {
+    if let Some(ref node) = lookup_bi_trait(v, &["core", "cmp", "Ord"], l, r)
+                .or_else(|| lookup_bi_trait(v, &["core", "cmp", "PartialOrd"], l, r)) {
+        //TODO
+    }
+}
+
+fn insert_op_assign(v: &mut FnVisitor, op_assign: &str, op: &str, l: &Expr, r: &Expr) {
+    if let Some(ref node) = lookup_bi_trait(v, &["core", "ops", op_assign], l, r)
+                .or_else(|| lookup_bi_trait(v, &["core", "ops", op], l, r)) {
+        //TODO
+    }
+}
+
+fn lookup_bi_trait(v: &mut FnVisitor, path: &[&str], l: &Expr, r: &Expr)
+-> Option<NodeId> {
+    None //TODO
 }
