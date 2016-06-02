@@ -19,27 +19,27 @@ use rustc::hir::intravisit::{FnKind, Visitor, walk_expr};
 
 #[plugin_registrar]
 pub fn plugin_registrar(reg: &mut Registry) {
-    reg.register_late_lint_pass(Box::new(Nsa::new()));
+    reg.register_late_lint_pass(Box::new(Metacollect::new()));
 }
 
 declare_lint! {
-    pub NSA,
+    pub METACOLLECT,
     Allow,
     "collect metadata"
 }
 
-pub struct Nsa {
+pub struct Metacollect {
     types_file: BufWriter<File>,
     fn_file: BufWriter<File>,
     current_crate: String,
     itemstack: Vec<Name>,
 }
 
-impl Nsa {
-    pub fn new() -> Nsa {
+impl Metacollect {
+    pub fn new() -> Metacollect {
         let types_file = File::create("target/nsa_types.txt").unwrap(); //TODO
         let fn_file = File::create("target/nsa_funcs.txt").unwrap(); //TODO
-        Nsa {
+        Metacollect {
             types_file: BufWriter::new(types_file),
             fn_file: BufWriter::new(fn_file),
             current_crate: "".into(),
@@ -48,13 +48,13 @@ impl Nsa {
     }
 }
 
-impl LintPass for Nsa {
+impl LintPass for Metacollect {
     fn get_lints(&self) -> LintArray {
-        lint_array!(NSA)
+        lint_array!(METACOLLECT)
     }
 }
 
-impl LateLintPass for Nsa {
+impl LateLintPass for Metacollect {
     fn check_crate(&mut self, cx: &LateContext, _: &Crate) {
         self.current_crate = (&cx.tcx.crate_name).to_string()
     }
@@ -95,40 +95,40 @@ impl LateLintPass for Nsa {
     }
 }
 
-fn insert_fn(nsa: &mut Nsa, cx: &LateContext, name: Name, block: &Block) {
+fn insert_fn(nsa: &mut Metacollect, cx: &LateContext, name: Name, block: &Block) {
     let mut visitor = FnVisitor::new(cx, nsa, name);
     visitor.visit_block(block);
 }
 
-fn insert_variant_data(nsa: &mut Nsa, def: &VariantData, generics: &Generics) {
+fn insert_variant_data(meta: &mut Metacollect, def: &VariantData, generics: &Generics) {
     match *def {
         VariantData::Struct(ref subtypes, _) |
         VariantData::Tuple(ref subtypes, _) => 
-            insert_struct_fields(nsa, subtypes, generics),
+            insert_struct_fields(meta, subtypes, generics),
         _ => ()
     }
 }
 
-fn insert_struct_fields(nsa: &mut Nsa, subtypes: &[StructField], _generics: &Generics) {
+fn insert_struct_fields(meta: &mut Metacollect, subtypes: &[StructField], _generics: &Generics) {
     for subty in subtypes {
         //TODO: handle generics
         //TODO: Check output of Ty_
         {
             let (ref mut file, ref current_crate, ref items) = 
-                (&mut nsa.types_file, &nsa.current_crate, &nsa.itemstack);
+                (&mut meta.types_file, &meta.current_crate, &meta.itemstack);
             insert_item_path(file, current_crate, items);
         }
-        let _ = writeln!(nsa.types_file, "\t{:?}", subty.ty.node);
+        let _ = writeln!(meta.types_file, "\t{:?}", subty.ty.node);
     }
 }
 
-fn insert_call(nsa: &mut Nsa, name: Name, path: &Path) {
+fn insert_call(meta: &mut Metacollect, name: Name, path: &Path) {
     {
         let (ref mut file, ref current_crate, ref items) = 
-            (&mut nsa.fn_file, &nsa.current_crate, &nsa.itemstack);
+            (&mut meta.fn_file, &meta.current_crate, &meta.itemstack);
         insert_item_path(file, current_crate, items);
     }
-    let _ = writeln!(nsa.fn_file, "{}\t{}", name.as_str(), path);
+    let _ = writeln!(meta.fn_file, "{}\t{}", name.as_str(), path);
 }
 
 fn insert_item_path(file: &mut BufWriter<File>, krate: &String, items: &[Name]) {
@@ -140,13 +140,13 @@ fn insert_item_path(file: &mut BufWriter<File>, krate: &String, items: &[Name]) 
 
 struct FnVisitor<'a, 'c, 't: 'c> {
     cx: &'c LateContext<'c, 't>,
-    nsa: &'a mut Nsa,
+    meta: &'a mut Metacollect,
     name: Name
 }
 
 impl<'a, 'c, 't: 'c> FnVisitor<'a, 'c, 't> {
-    fn new(cx: &'c LateContext<'c, 't>, nsa: &'a mut Nsa, name: Name) -> Self {
-        FnVisitor { cx: cx, nsa: nsa, name: name }
+    fn new(cx: &'c LateContext<'c, 't>, meta: &'a mut Metacollect, name: Name) -> Self {
+        FnVisitor { cx: cx, meta: meta, name: name }
     }
 }
 
@@ -167,7 +167,7 @@ impl<'a, 'c, 't: 'c> Visitor<'c> for FnVisitor<'a, 'c, 't> {
                 // target is a Spanned{ ExprPath } here
                 if let ExprPath(ref _qself, ref path) = function.node {
                     //TODO: look up path, what to do with qself?
-                    insert_call(self.nsa, self.name, path);
+                    insert_call(self.meta, self.name, path);
                 },
             ExprUnary(op, ref arg) => {
                 let trait_path : &'static [&str] = match op {
