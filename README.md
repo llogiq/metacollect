@@ -1,4 +1,4 @@
-# NSA
+# metacollect
 
 *Collecting All Your Crate Metadata*
 
